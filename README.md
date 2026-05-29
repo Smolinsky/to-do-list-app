@@ -1,6 +1,6 @@
 # To-Do List App (Kanban Style)
 
-A powerful Task Management API built with Laravel, featuring Boards, Tasks, and Drag-and-drop functionality similar to Jira or Trello.
+Task Management API built with Laravel, featuring Boards, Tasks, and Drag-and-drop functionality.
 
 ## Features
 
