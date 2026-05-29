@@ -52,4 +52,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Task::class);
     }
+
+    public function boards(): HasMany
+    {
+        return $this->hasMany(Board::class);
+    }
+
+    public function taskAttachments(): HasMany
+    {
+        return $this->hasMany(TaskAttachment::class);
+    }
 }

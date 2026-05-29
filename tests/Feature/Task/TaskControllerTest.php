@@ -4,6 +4,7 @@ namespace Tests\Feature\Task;
 
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Models\Board;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -86,8 +87,8 @@ class TaskControllerTest extends TestCase
                 'id' => $task->id,
                 'title' => $task->title,
                 'description' => $task->description,
-                'status' => $task->status,
-                'priority' => $task->priority,
+                'status' => $task->status->value,
+                'priority' => $task->priority->value,
                 'due_date' => $task->due_date->toDateString(),
             ]);
     }
@@ -124,11 +125,15 @@ class TaskControllerTest extends TestCase
             'description' => 'Updated description',
             'status' => 'completed',
             'priority' => 'high',
-            'due_date' => $updatedData['due_date'],
         ]);
+
+        $this->assertEquals(
+            $updatedData['due_date'],
+            $task->refresh()->due_date->toDateString()
+        );
     }
 
-    public function testUserCanDeleteTask()
+    public function testUserCanArchiveTask()
     {
         $user = User::factory()->create();
         $task = Task::factory()->create([
@@ -138,7 +143,184 @@ class TaskControllerTest extends TestCase
         $this->actingAs($user)
             ->deleteJson(route('api.tasks.delete', $task))
             ->assertOk()
-            ->assertJson(['message' => 'Successfully deleted']);
+            ->assertJson(['message' => 'Successfully archived']);
+
+        $this->assertSoftDeleted('tasks', [
+            'id' => $task->id,
+        ]);
+    }
+
+    public function testArchivingTaskReordersRemainingTasksInColumn(): void
+    {
+        $user = User::factory()->create();
+        $board = Board::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $firstTask = Task::factory()->create([
+            'user_id' => $user->id,
+            'board_id' => $board->id,
+            'status' => TaskStatus::PENDING,
+            'position' => 0,
+        ]);
+        $taskToArchive = Task::factory()->create([
+            'user_id' => $user->id,
+            'board_id' => $board->id,
+            'status' => TaskStatus::PENDING,
+            'position' => 1,
+        ]);
+        $thirdTask = Task::factory()->create([
+            'user_id' => $user->id,
+            'board_id' => $board->id,
+            'status' => TaskStatus::PENDING,
+            'position' => 2,
+        ]);
+
+        $this->actingAs($user)
+            ->deleteJson(route('api.tasks.delete', $taskToArchive))
+            ->assertOk();
+
+        $this->assertSoftDeleted('tasks', [
+            'id' => $taskToArchive->id,
+        ]);
+        $this->assertEquals(0, $firstTask->refresh()->position);
+        $this->assertEquals(1, $thirdTask->refresh()->position);
+    }
+
+    public function testArchivedTaskIsHiddenFromTaskListAndShowRoute(): void
+    {
+        $user = User::factory()->create();
+        $activeTask = Task::factory()->create([
+            'user_id' => $user->id,
+        ]);
+        $archivedTask = Task::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->deleteJson(route('api.tasks.delete', $archivedTask))
+            ->assertOk();
+
+        $this->actingAs($user)
+            ->getJson(route('api.tasks'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonFragment([
+                'id' => $activeTask->id,
+            ])
+            ->assertJsonMissing([
+                'id' => $archivedTask->id,
+            ]);
+
+        $this->actingAs($user)
+            ->getJson(route('api.tasks.show', $archivedTask->id))
+            ->assertNotFound();
+    }
+
+    public function testUserCanMoveTaskWithinSameColumn(): void
+    {
+        $user = User::factory()->create();
+        $board = Board::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $firstTask = Task::factory()->create([
+            'user_id' => $user->id,
+            'board_id' => $board->id,
+            'status' => TaskStatus::PENDING,
+            'position' => 0,
+        ]);
+        $secondTask = Task::factory()->create([
+            'user_id' => $user->id,
+            'board_id' => $board->id,
+            'status' => TaskStatus::PENDING,
+            'position' => 1,
+        ]);
+        $thirdTask = Task::factory()->create([
+            'user_id' => $user->id,
+            'board_id' => $board->id,
+            'status' => TaskStatus::PENDING,
+            'position' => 2,
+        ]);
+
+        $this->actingAs($user)
+            ->patchJson(route('api.tasks.move', $thirdTask), [
+                'position' => 0,
+            ])
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $thirdTask->id,
+                'position' => 0,
+            ]);
+
+        $this->assertEquals(0, $thirdTask->refresh()->position);
+        $this->assertEquals(1, $firstTask->refresh()->position);
+        $this->assertEquals(2, $secondTask->refresh()->position);
+    }
+
+    public function testUserCanMoveTaskToAnotherBoardAndStatus(): void
+    {
+        $user = User::factory()->create();
+        $sourceBoard = Board::factory()->create([
+            'user_id' => $user->id,
+        ]);
+        $destinationBoard = Board::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $taskToMove = Task::factory()->create([
+            'user_id' => $user->id,
+            'board_id' => $sourceBoard->id,
+            'status' => TaskStatus::PENDING,
+            'position' => 0,
+        ]);
+        $remainingTask = Task::factory()->create([
+            'user_id' => $user->id,
+            'board_id' => $sourceBoard->id,
+            'status' => TaskStatus::PENDING,
+            'position' => 1,
+        ]);
+        $destinationTask = Task::factory()->create([
+            'user_id' => $user->id,
+            'board_id' => $destinationBoard->id,
+            'status' => TaskStatus::IN_PROGRESS,
+            'position' => 0,
+        ]);
+
+        $this->actingAs($user)
+            ->patchJson(route('api.tasks.move', $taskToMove), [
+                'board_id' => $destinationBoard->id,
+                'status' => TaskStatus::IN_PROGRESS->value,
+                'position' => 0,
+            ])
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $taskToMove->id,
+                'board_id' => $destinationBoard->id,
+                'status' => TaskStatus::IN_PROGRESS->value,
+                'position' => 0,
+            ]);
+
+        $this->assertEquals($destinationBoard->id, $taskToMove->refresh()->board_id);
+        $this->assertEquals(TaskStatus::IN_PROGRESS, $taskToMove->refresh()->status);
+        $this->assertEquals(0, $taskToMove->refresh()->position);
+        $this->assertEquals(0, $remainingTask->refresh()->position);
+        $this->assertEquals(1, $destinationTask->refresh()->position);
+    }
+
+    public function testUnauthorizedUserCannotMoveTask(): void
+    {
+        $user = User::factory()->create();
+        $anotherUser = User::factory()->create();
+        $task = Task::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $this->actingAs($anotherUser)
+            ->patchJson(route('api.tasks.move', $task), [
+                'position' => 0,
+            ])
+            ->assertForbidden();
     }
 
     public function testUnauthorizedUserCannotDeleteTask()

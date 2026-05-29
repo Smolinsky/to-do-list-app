@@ -2,10 +2,11 @@
 
 namespace App\Http\Requests\Auth\Registration;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\DTO\RegisterData;
+use App\Http\Requests\DataRequest;
 use Illuminate\Validation\Rules\Password;
 
-class RegisterRequest extends FormRequest
+class RegisterRequest extends DataRequest
 {
     public function rules(): array
     {
@@ -19,5 +20,10 @@ class RegisterRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function dataClass(): string
+    {
+        return RegisterData::class;
     }
 }

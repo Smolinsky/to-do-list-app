@@ -20,13 +20,18 @@ class Filter extends QueryFilter
         $this->builder->where('priority', strtolower($priority));
     }
 
+    public function boardId(string $boardId): void
+    {
+        $this->builder->where('board_id', $boardId);
+    }
+
     /**
      * @param  string  $field
      * @param  string  $direction
      */
     public function sort(string $field, string $direction = 'asc'): void
     {
-        $allowedFields = ['created_at', 'due_date'];
+        $allowedFields = ['created_at', 'due_date', 'position'];
         if (in_array($field, $allowedFields)) {
             $this->builder->orderBy($field, $this->direction($direction));
         }

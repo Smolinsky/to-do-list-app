@@ -2,13 +2,12 @@
 
 namespace App\Http\Requests\Task;
 
-use App\DTO\Task\UpdateTaskData;
-use App\Enums\TaskPriority;
+use App\DTO\Task\MoveTaskData;
 use App\Enums\TaskStatus;
 use App\Http\Requests\DataRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateTaskRequest extends DataRequest
+class MoveTaskRequest extends DataRequest
 {
     public function rules(): array
     {
@@ -19,11 +18,7 @@ class UpdateTaskRequest extends DataRequest
                 'integer',
                 Rule::exists('boards', 'id')->where(fn($query) => $query->where('user_id', $this->user()->id)),
             ],
-            'title' => ['sometimes', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
             'status' => ['sometimes', 'string', 'in:' . implode(',', TaskStatus::values())],
-            'priority' => ['sometimes', 'string', 'in:' . implode(',', TaskPriority::values())],
-            'due_date' => ['nullable', 'date'],
             'position' => ['sometimes', 'integer', 'min:0'],
         ];
     }
@@ -35,6 +30,6 @@ class UpdateTaskRequest extends DataRequest
 
     protected function dataClass(): string
     {
-        return UpdateTaskData::class;
+        return MoveTaskData::class;
     }
 }

@@ -2,9 +2,10 @@
 
 namespace App\Http\Requests\Auth;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\DTO\Auth\LoginData;
+use App\Http\Requests\DataRequest;
 
-class LoginRequest extends FormRequest
+class LoginRequest extends DataRequest
 {
     public function rules(): array
     {
@@ -17,5 +18,10 @@ class LoginRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function dataClass(): string
+    {
+        return LoginData::class;
     }
 }

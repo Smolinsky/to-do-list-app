@@ -2,8 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Board;
 use App\Models\Task;
-use Illuminate\Foundation\Auth\User;
+use App\Models\User;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -34,6 +35,10 @@ class AuthServiceProvider extends ServiceProvider
     {
         Gate::define('check-task', function (User $user, Task $task) {
             return $user->id === $task->user_id;
+        });
+
+        Gate::define('check-board', function (User $user, Board $board) {
+            return $user->id === $board->user_id;
         });
     }
 }

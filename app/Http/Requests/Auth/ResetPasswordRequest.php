@@ -2,10 +2,11 @@
 
 namespace App\Http\Requests\Auth;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\DTO\Auth\ResetPasswordData;
+use App\Http\Requests\DataRequest;
 use Illuminate\Validation\Rules\Password;
 
-class ResetPasswordRequest extends FormRequest
+class ResetPasswordRequest extends DataRequest
 {
     public function rules(): array
     {
@@ -19,5 +20,10 @@ class ResetPasswordRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function dataClass(): string
+    {
+        return ResetPasswordData::class;
     }
 }

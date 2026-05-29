@@ -16,7 +16,8 @@ class RegisterController extends Controller
 
     public function register(RegisterRequest $request): RegisterData
     {
-        $registerData = RegisterData::from($request->validated());
+        /** @var RegisterData $registerData */
+        $registerData = $request->getDTO();
 
         return $this->registrationService->registerUser($registerData);
     }

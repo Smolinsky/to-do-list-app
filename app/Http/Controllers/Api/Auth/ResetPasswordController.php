@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\DTO\Auth\ForgotPasswordData;
+use App\DTO\Auth\ResetPasswordData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
@@ -17,8 +19,11 @@ class ResetPasswordController extends Controller
 {
     public function forgot(ForgotPasswordRequest $request): JsonResponse
     {
+        /** @var ForgotPasswordData $forgotPasswordData */
+        $forgotPasswordData = $request->getDTO();
+
         $status = Password::sendResetLink(
-            $request->validated()
+            $forgotPasswordData->toCredentials()
         );
 
         $statusCode = $status === Password::RESET_LINK_SENT
@@ -32,11 +37,14 @@ class ResetPasswordController extends Controller
 
     public function reset(ResetPasswordRequest $request)
     {
+        /** @var ResetPasswordData $resetPasswordData */
+        $resetPasswordData = $request->getDTO();
+
         $status = Password::reset(
-            $request->validated(),
-            function (User $user, string $password) {
+            $resetPasswordData->toCredentials(),
+            function (User $user) use ($resetPasswordData) {
                 $user->forceFill([
-                    'password' => Hash::make($password)
+                    'password' => Hash::make($resetPasswordData->password)
                 ])->setRememberToken(Str::random(60));
 
                 $user->save();

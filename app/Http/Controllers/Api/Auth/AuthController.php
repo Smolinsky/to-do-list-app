@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\DTO\Auth\LoginData;
 use App\DTO\AuthData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
@@ -22,7 +23,10 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request): AuthData
     {
-        return $this->authService->authenticateByCredentials($request->email, $request->password);
+        /** @var LoginData $loginData */
+        $loginData = $request->getDTO();
+
+        return $this->authService->authenticateByCredentials($loginData);
     }
 
     public function logout(): JsonResponse
